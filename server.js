@@ -24,8 +24,8 @@ wss.on("connection", ws => {
 
   ws.on("message", msg => {
     if (ws.partner) {
-      // Always forward as string
-      ws.partner.send(msg.toString());
+      // Relay exactly what was received (already JSON string)
+      ws.partner.send(msg);
     }
   });
 
