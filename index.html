@@ -27,7 +27,7 @@
       ws = new WebSocket("wss://random-video-call-kipn.onrender.com"); // ✅ Replace with your Render URL
 
       ws.onopen = () => {
-        document.getElementById("status").textContent = "Connected. Waiting for partner...";
+        document.getElementById("status").textContent = "Connected. Waiting for partner....";
       };
 
       ws.onmessage = async event => {
