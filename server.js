@@ -13,8 +13,8 @@ wss.on("connection", ws => {
     ws.partner = partner;
     partner.partner = ws;
 
-    ws.send(JSON.stringify({ type: "match" }));
-    partner.send(JSON.stringify({ type: "match" }));
+    ws.send(JSON.stringify({ type: "match", role: "caller" }));
+    partner.send(JSON.stringify({ type: "match", role: "callee" }));
   } else {
     waitingClient = ws;
     ws.send(JSON.stringify({ type: "waiting" }));
@@ -22,8 +22,7 @@ wss.on("connection", ws => {
 
   ws.on("message", msg => {
     if (ws.partner) {
-      // Relay exactly what was received (stringified JSON)
-      ws.partner.send(msg.toString());
+      ws.partner.send(msg); // relay JSON string
     }
   });
 
