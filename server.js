@@ -22,7 +22,9 @@ wss.on("connection", ws => {
 
   ws.on("message", msg => {
     if (ws.partner) {
-      ws.partner.send(msg); // relay JSON string
+      // Convert Buffer → string before forwarding
+      const text = msg.toString();
+      ws.partner.send(text);
     }
   });
 
