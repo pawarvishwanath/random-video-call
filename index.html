@@ -60,7 +60,7 @@
           const offer = await peerConnection.createOffer();
           await peerConnection.setLocalDescription(offer);
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "offer", offer }));
+            ws.send(JSON.stringify({ type: "offer", offer: offer.sdp }));
           }
         }
 
@@ -82,21 +82,29 @@
             }
           };
 
-          await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.offer }));
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription({ type: "offer", sdp: data.offer })
+          );
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "answer", answer }));
+            ws.send(JSON.stringify({ type: "answer", answer: answer.sdp }));
           }
         }
 
         if (data.type === "answer") {
           document.getElementById("status").textContent = "Connected!";
-          await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: data.answer }));
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription({ type: "answer", sdp: data.answer })
+          );
         }
 
         if (data.type === "candidate") {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          if (peerConnection.remoteDescription) {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } else {
+            console.warn("Candidate received before remote description");
+          }
         }
 
         if (data.type === "disconnect") {
