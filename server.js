@@ -1,7 +1,5 @@
-// server.js       
+// server.js
 const WebSocket = require("ws");
-
-// Render requires you to use process.env.PORT
 const PORT = process.env.PORT || 8080;
 const wss = new WebSocket.Server({ port: PORT });
 
@@ -24,8 +22,8 @@ wss.on("connection", ws => {
 
   ws.on("message", msg => {
     if (ws.partner) {
-      // Relay exactly what was received (already JSON string)
-      ws.partner.send(msg);
+      // Relay exactly what was received (stringified JSON)
+      ws.partner.send(msg.toString());
     }
   });
 
