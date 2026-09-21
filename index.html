@@ -87,10 +87,10 @@
           await peerConnection.setLocalDescription(answer);
           ws.send(JSON.stringify({ type: "answer", answer: answer.sdp }));
 
-          // Apply any queued candidates
-          pendingCandidates.forEach(async c => {
+          // Apply queued candidates
+          for (const c of pendingCandidates) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(c));
-          });
+          }
           pendingCandidates = [];
         }
 
@@ -99,10 +99,10 @@
             new RTCSessionDescription({ type: "answer", sdp: data.answer })
           );
 
-          // Apply any queued candidates
-          pendingCandidates.forEach(async c => {
+          // Apply queued candidates
+          for (const c of pendingCandidates) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(c));
-          });
+          }
           pendingCandidates = [];
         }
 
