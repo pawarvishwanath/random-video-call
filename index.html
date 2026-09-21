@@ -20,8 +20,8 @@
     let localStream, peerConnection, ws;
     const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-    async function _startCall() {
-      ws = new WebSocket("wss://random-video-call-kipn.onrender.com"); // Replace with your Render URL
+    async function startCall() {
+      ws = new WebSocket("wss://random-video-call-kipn.onrender.com"); // ✅ use your Render backend URL
 
       ws.onmessage = async event => {
         const data = JSON.parse(event.data);
@@ -81,7 +81,8 @@
       };
     }
 
-    document.getElementById("startBtn").onclick = _startCall;
+    // ✅ Attach after DOM is loaded
+    document.getElementById("startBtn").onclick = startCall;
   </script>
 </body>
 </html>
