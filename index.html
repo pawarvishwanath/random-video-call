@@ -7,6 +7,8 @@
     video { width: 45%; margin: 10px; border: 2px solid #333; }
     #videos { display: flex; justify-content: center; }
     #status { margin: 10px; font-weight: bold; }
+    #chat { margin-top: 15px; }
+    #chatBox { width: 80%; height: 100px; }
   </style>
 </head>
 <body>
@@ -16,15 +18,32 @@
     <video id="remoteVideo" autoplay playsinline></video>
   </div>
   <button id="startBtn">Start Call</button>
+  <button id="newPartnerBtn">Search New Partner</button>
+  <button id="switchCamBtn">Switch Camera</button>
   <div id="status">Idle</div>
+
+  <div id="chat">
+    <textarea id="chatBox" readonly></textarea><br>
+    <input id="chatInput" placeholder="Type message...">
+    <button id="sendBtn">Send</button>
+  </div>
 
   <script>
     let localStream, peerConnection, ws, pendingCandidates = [];
+    let useFrontCamera = true;
     const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+    async function getMedia() {
+      const constraints = {
+        video: { facingMode: useFrontCamera ? "user" : "environment" },
+        audio: true
+      };
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    }
 
     async function startCall() {
       document.getElementById("status").textContent = "Connecting to server...";
-      ws = new WebSocket("wss://random-video-call-kipn.onrender.com"); // replace with your Render URL
+      ws = new WebSocket("wss://random-video-call-kipn.onrender.com");
 
       ws.onopen = () => {
         document.getElementById("status").textContent = "Connected. Waiting for partner...";
@@ -32,17 +51,15 @@
 
       ws.onmessage = async event => {
         let data;
-        try {
-          data = JSON.parse(event.data);
-        } catch {
-          console.error("Not JSON:", event.data);
-          return;
+        try { data = JSON.parse(event.data); } catch { return; }
+
+        if (data.type === "chat") {
+          document.getElementById("chatBox").value += "Partner: " + data.message + "\n";
         }
 
         if (data.type === "match") {
           peerConnection = new RTCPeerConnection(servers);
-
-          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          localStream = await getMedia();
           document.getElementById("localVideo").srcObject = localStream;
           localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
@@ -65,8 +82,7 @@
 
         if (data.type === "offer") {
           peerConnection = new RTCPeerConnection(servers);
-
-          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          localStream = await getMedia();
           document.getElementById("localVideo").srcObject = localStream;
           localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
@@ -80,30 +96,14 @@
             }
           };
 
-          await peerConnection.setRemoteDescription(
-            new RTCSessionDescription({ type: "offer", sdp: data.offer })
-          );
+          await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.offer }));
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
           ws.send(JSON.stringify({ type: "answer", answer: answer.sdp }));
-
-          // Apply queued candidates
-          for (const c of pendingCandidates) {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(c));
-          }
-          pendingCandidates = [];
         }
 
         if (data.type === "answer") {
-          await peerConnection.setRemoteDescription(
-            new RTCSessionDescription({ type: "answer", sdp: data.answer })
-          );
-
-          // Apply queued candidates
-          for (const c of pendingCandidates) {
-            await peerConnection.addIceCandidate(new RTCIceCandidate(c));
-          }
-          pendingCandidates = [];
+          await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: data.answer }));
         }
 
         if (data.type === "candidate") {
@@ -121,6 +121,35 @@
     }
 
     document.getElementById("startBtn").onclick = startCall;
+
+    document.getElementById("newPartnerBtn").onclick = () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "requeue" }));
+        document.getElementById("status").textContent = "Searching for new partner...";
+      }
+    };
+
+    document.getElementById("sendBtn").onclick = () => {
+      const msg = document.getElementById("chatInput").value;
+      if (msg && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "chat", message: msg }));
+        document.getElementById("chatBox").value += "You: " + msg + "\n";
+        document.getElementById("chatInput").value = "";
+      }
+    };
+
+    document.getElementById("switchCamBtn").onclick = async () => {
+      useFrontCamera = !useFrontCamera;
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      localStream = await getMedia();
+      document.getElementById("localVideo").srcObject = localStream;
+      const senders = peerConnection.getSenders();
+      const videoTrack = localStream.getVideoTracks()[0];
+      const sender = senders.find(s => s.track && s.track.kind === "video");
+      if (sender) sender.replaceTrack(videoTrack);
+    };
   </script>
 </body>
 </html>
