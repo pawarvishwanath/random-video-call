@@ -24,7 +24,8 @@ wss.on("connection", ws => {
 
   ws.on("message", msg => {
     if (ws.partner) {
-      ws.partner.send(msg); // Relay SDP/ICE messages
+      // Always forward as string
+      ws.partner.send(msg.toString());
     }
   });
 
