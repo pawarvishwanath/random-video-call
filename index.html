@@ -1,67 +1,87 @@
-<script>
-  let localStream, peerConnection, ws;
-  const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Random Video Call</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    video { width: 45%; margin: 10px; border: 2px solid #333; }
+    #videos { display: flex; justify-content: center; }
+  </style>
+</head>
+<body>
+  <h2>Random Video Call</h2>
+  <div id="videos">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+  </div>
+  <button id="startBtn">Start Call</button>
 
-  async function startCall() {
-    ws = new WebSocket("https://random-video-call-kipn.onrender.com"); // Replace with your server URL
+  <script>
+    let localStream, peerConnection, ws;
+    const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-    ws.onmessage = async event => {
-      const data = JSON.parse(event.data);
+    async function _startCall() {
+      ws = new WebSocket("wss://random-video-server.onrender.com"); // Replace with your Render URL
 
-      if (data.type === "match") {
-        peerConnection = new RTCPeerConnection(servers);
+      ws.onmessage = async event => {
+        const data = JSON.parse(event.data);
 
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        document.getElementById("localVideo").srcObject = localStream;
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        if (data.type === "match") {
+          peerConnection = new RTCPeerConnection(servers);
 
-        peerConnection.ontrack = e => {
-          document.getElementById("remoteVideo").srcObject = e.streams[0];
-        };
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          document.getElementById("localVideo").srcObject = localStream;
+          localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        peerConnection.onicecandidate = e => {
-          if (e.candidate) {
-            ws.send(JSON.stringify({ type: "candidate", candidate: e.candidate }));
-          }
-        };
+          peerConnection.ontrack = e => {
+            document.getElementById("remoteVideo").srcObject = e.streams[0];
+          };
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        ws.send(JSON.stringify({ type: "offer", offer }));
-      }
+          peerConnection.onicecandidate = e => {
+            if (e.candidate) {
+              ws.send(JSON.stringify({ type: "candidate", candidate: e.candidate }));
+            }
+          };
 
-      if (data.type === "offer") {
-        peerConnection = new RTCPeerConnection(servers);
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          ws.send(JSON.stringify({ type: "offer", offer }));
+        }
 
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        document.getElementById("localVideo").srcObject = localStream;
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        if (data.type === "offer") {
+          peerConnection = new RTCPeerConnection(servers);
 
-        peerConnection.ontrack = e => {
-          document.getElementById("remoteVideo").srcObject = e.streams[0];
-        };
+          localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+          document.getElementById("localVideo").srcObject = localStream;
+          localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
-        peerConnection.onicecandidate = e => {
-          if (e.candidate) {
-            ws.send(JSON.stringify({ type: "candidate", candidate: e.candidate }));
-          }
-        };
+          peerConnection.ontrack = e => {
+            document.getElementById("remoteVideo").srcObject = e.streams[0];
+          };
 
-        await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.offer }));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        ws.send(JSON.stringify({ type: "answer", answer }));
-      }
+          peerConnection.onicecandidate = e => {
+            if (e.candidate) {
+              ws.send(JSON.stringify({ type: "candidate", candidate: e.candidate }));
+            }
+          };
 
-      if (data.type === "answer") {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: data.answer }));
-      }
+          await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.offer }));
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          ws.send(JSON.stringify({ type: "answer", answer }));
+        }
 
-      if (data.type === "candidate") {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    };
-  }
+        if (data.type === "answer") {
+          await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: data.answer }));
+        }
 
-  document.getElementById("startBtn").onclick = startCall;
-</script>
+        if (data.type === "candidate") {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+      };
+    }
+
+    document.getElementById("startBtn").onclick = _startCall;
+  </script>
+</body>
+</html>
