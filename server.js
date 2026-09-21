@@ -6,24 +6,41 @@ const wss = new WebSocket.Server({ port: PORT });
 let waitingClient = null;
 
 wss.on("connection", ws => {
-  if (waitingClient) {
-    const partner = waitingClient;
-    waitingClient = null;
-
-    ws.partner = partner;
-    partner.partner = ws;
-
-    ws.send(JSON.stringify({ type: "match", role: "caller" }));
-    partner.send(JSON.stringify({ type: "match", role: "callee" }));
-  } else {
-    waitingClient = ws;
-    ws.send(JSON.stringify({ type: "waiting" }));
-  }
-
   ws.on("message", msg => {
+    const text = msg.toString();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return;
+    }
+
+    if (data.type === "requeue") {
+      if (ws.partner) {
+        ws.partner.send(JSON.stringify({ type: "disconnect" }));
+        ws.partner.partner = null;
+      }
+      ws.partner = null;
+      if (waitingClient) {
+        const partner = waitingClient;
+        waitingClient = null;
+        ws.partner = partner;
+        partner.partner = ws;
+        ws.send(JSON.stringify({ type: "match", role: "caller" }));
+        partner.send(JSON.stringify({ type: "match", role: "callee" }));
+      } else {
+        waitingClient = ws;
+        ws.send(JSON.stringify({ type: "waiting" }));
+      }
+      return;
+    }
+
+    if (data.type === "chat" && ws.partner) {
+      ws.partner.send(text);
+      return;
+    }
+
     if (ws.partner) {
-      // Convert Buffer → string before forwarding
-      const text = msg.toString();
       ws.partner.send(text);
     }
   });
