@@ -1,12 +1,14 @@
 // server.js
 const WebSocket = require("ws");
-const wss = new WebSocket.Server({ port: 8080 });
+
+// Render requires you to use process.env.PORT
+const PORT = process.env.PORT || 8080;
+const wss = new WebSocket.Server({ port: PORT });
 
 let waitingClient = null;
 
 wss.on("connection", ws => {
   if (waitingClient) {
-    // Pair with waiting client
     const partner = waitingClient;
     waitingClient = null;
 
@@ -16,7 +18,6 @@ wss.on("connection", ws => {
     ws.send(JSON.stringify({ type: "match" }));
     partner.send(JSON.stringify({ type: "match" }));
   } else {
-    // No one waiting, store this client
     waitingClient = ws;
     ws.send(JSON.stringify({ type: "waiting" }));
   }
@@ -37,3 +38,5 @@ wss.on("connection", ws => {
     }
   });
 });
+
+console.log(`WebSocket server running on port ${PORT}`);
